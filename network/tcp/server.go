@@ -21,6 +21,7 @@ var _ actor.Receiver = (*server)(nil)
 
 func NewServer(addr string, opts ...Option) network.Server {
 	srv := &server{
+		Event:       &network.Event{},
 		connections: concurrent.NewMap[string, network.Conn](),
 	}
 	defaultOpts := defaultOptions(addr)
@@ -28,11 +29,12 @@ func NewServer(addr string, opts ...Option) network.Server {
 		opt(defaultOpts)
 	}
 	srv.opts = defaultOpts
+	srv.Event.Server = srv
 	return srv
 }
 
 type server struct {
-	network.Event
+	*network.Event
 	ctx         *actor.Context
 	opts        *options
 	connections *concurrent.Map[string, network.Conn]

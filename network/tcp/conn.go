@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"fmt"
 	"net"
 	"strings"
 
@@ -69,9 +68,8 @@ func (slf *tcpConn) Receive(ctx *actor.Context) {
 	switch message := ctx.Message().(type) {
 	case actor.Started:
 		slf.ctx = ctx
-		log.Info("tcp conn", log.Any("pid", ctx.PID()))
 	case actor.Stopped:
 	default:
-		fmt.Println(message)
+		log.Info("tcp conn received message", log.Any("msg", message))
 	}
 }
