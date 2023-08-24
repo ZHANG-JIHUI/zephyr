@@ -1,0 +1,23 @@
+syntax = "proto3";
+package remote;
+option go_package = "zephyr/third_party/hollywood/remote";
+
+import "actor.proto";
+
+service Remote {
+  rpc Receive(stream Packet) returns (stream Packet) {}
+}
+
+message Packet {
+  repeated string typeNames = 1;
+  repeated actor.PID targets = 2;
+  repeated actor.PID senders = 3;
+  repeated Message messages = 4;
+}
+
+message Message {
+  bytes data = 1;
+  int32 targetIndex = 2;
+  int32 senderIndex = 3;
+  int32 typeNameIndex = 4;
+}
