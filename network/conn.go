@@ -12,4 +12,5 @@ type Conn interface {
 	RemoteAddr() net.Addr
 	IP() string
 	Close() error
+	Write([]byte)
 }

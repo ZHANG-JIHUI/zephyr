@@ -44,6 +44,10 @@ func (slf *server) PID() *actor.PID {
 	return slf.ctx.PID()
 }
 
+func (slf *server) Context() *actor.Context {
+	return slf.ctx
+}
+
 func (slf *server) Producer() actor.Producer {
 	return func() actor.Receiver {
 		return slf

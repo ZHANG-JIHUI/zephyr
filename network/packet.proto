@@ -1,0 +1,8 @@
+syntax = "proto3";
+package network;
+option go_package = "github.com/ZHANG-JIHUI/zephyr/network";
+
+message NetPacketMessage {
+  int32 id=1;
+  bytes data=2;
+}
