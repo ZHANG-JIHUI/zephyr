@@ -91,8 +91,9 @@ func (slf *ExprParser) parseArguments() []any {
 				if symbols[arg] {
 					panic(fmt.Sprintf("Expected argument at position %d, but got %s", slf.current, arg))
 				}
+			default:
+				arguments = append(arguments, arg)
 			}
-			arguments = append(arguments, slf.consumeString())
 		}
 	}
 	return arguments

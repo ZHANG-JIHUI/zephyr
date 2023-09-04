@@ -53,8 +53,7 @@ func TestExprParser(t *testing.T) {
 		return true
 	})
 
-	//expr := "(a(1,2)||b(3))&&(c(sleep)&&d(5))"
-	expr := "a(1,2)"
+	expr := "(a(1,2)||b(3))&&(c(sleep)&&d(5))"
 	parser := NewExprParser(expr, proc)
 	tree, err := parser.BuildTree()
 	if err != nil {
