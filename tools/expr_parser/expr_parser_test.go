@@ -15,25 +15,18 @@ func (slf *ExprProcessor) Register(method string, handle fn.HandleReturnBool) {
 	slf.handles[method] = handle
 }
 
-func (slf *ExprProcessor) Check(method string, args []any) bool {
-	_, ok := slf.handles[method]
-	if !ok {
-		log.Panic("ExprProcessor.Check: method not found", log.String("method", method))
-		return false
-	}
-	return true
-}
-
-func (slf *ExprProcessor) Verify(method string, args []any) bool {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Error("ExprProcessor.Verify: panic", log.String("method", method), log.Any("args", args), log.Any("err", err))
-		}
-	}()
-
+func (slf *ExprProcessor) Verify(method string, args []any) {
 	handle, ok := slf.handles[method]
 	if !ok {
-		log.Error("ExprProcessor.Verify: method not found", log.String("method", method), log.Any("args", args))
+		log.Panic("ExprProcessor.Check: method not found", log.String("method", method))
+	}
+	handle(args)
+}
+
+func (slf *ExprProcessor) Result(method string, args []any) bool {
+	handle, ok := slf.handles[method]
+	if !ok {
+		log.Error("ExprProcessor.Result: method not found", log.String("method", method), log.Any("args", args))
 		return false
 	}
 	return handle(args)
@@ -45,7 +38,7 @@ func TestExprParser(t *testing.T) {
 		arg1 := args[0].(int)
 		arg2 := args[1].(int)
 		fmt.Println("method A", arg1+arg2)
-		return false
+		return true
 	})
 	proc.Register("b", func(args []any) bool {
 		fmt.Println("method B")
@@ -60,8 +53,18 @@ func TestExprParser(t *testing.T) {
 		return true
 	})
 
-	expr := "(a(1,2)||b(3))&&(c(4)&&d(5))"
+	//expr := "(a(1,2)||b(3))&&(c(sleep)&&d(5))"
+	expr := "a(1,2)"
 	parser := NewExprParser(expr, proc)
-	result := parser.Parse()
+	tree, err := parser.BuildTree()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(tree.String())
+
+	if err := parser.Verify(); err != nil {
+		panic(err)
+	}
+	result := parser.Result()
 	fmt.Println(result)
 }

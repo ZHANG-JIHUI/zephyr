@@ -2,70 +2,82 @@ package expr_parser
 
 import (
 	"fmt"
+	"github.com/ZHANG-JIHUI/zephyr/tools/log"
+	"github.com/pkg/errors"
 	"strconv"
 	"strings"
 )
 
-// ExprParser 表达式递归下降解析器
+// ExprParser 表达式解析器
 type ExprParser struct {
 	tokens  []string
 	current int
 	proc    Processor
+	tree    *ExprTree
 }
-
-type (
-	Processor interface {
-		Register(method string, handle func(args []any) bool)
-		Check(method string, args []any) bool
-		Verify(method string, args []any) bool
-	}
-)
 
 func NewExprParser(expr string, proc Processor) *ExprParser {
-	tokens := exprTokenize(expr)
 	return &ExprParser{
-		tokens:  tokens,
-		current: 0,
-		proc:    proc,
+		tokens: tokenize(expr),
+		proc:   proc,
 	}
 }
 
-func (slf *ExprParser) Parse() bool {
-	return slf.parseOr()
+// BuildTree 构建表达式树
+func (slf *ExprParser) BuildTree() (tree *ExprTree, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Errorf("build expr tree failed, err: %v", r)
+			log.Error("ExprParser.BuildTree: panic", log.Any("err", err))
+		}
+	}()
+	tree = &ExprTree{
+		root: slf.parseOr(),
+	}
+	slf.tree = tree
+	return
 }
 
-func (slf *ExprParser) parseOr() bool {
+func (slf *ExprParser) parseOr() *ExprNode {
 	result := slf.parseAnd()
 	for slf.match("||") {
-		result = result || slf.parseAnd()
+		andNode := slf.parseAnd()
+		orNode := &ExprNode{Method: "||"}
+		orNode.AddChild(result)
+		orNode.AddChild(andNode)
+		result = orNode
 	}
 	return result
 }
 
-func (slf *ExprParser) parseAnd() bool {
+func (slf *ExprParser) parseAnd() *ExprNode {
 	result := slf.parsePrimary()
 	for slf.match("&&") {
-		result = result && slf.parsePrimary()
+		primaryNode := slf.parsePrimary()
+		andNode := &ExprNode{Method: "&&"}
+		andNode.AddChild(result)
+		andNode.AddChild(primaryNode)
+		result = andNode
 	}
 	return result
 }
 
-func (slf *ExprParser) parsePrimary() bool {
+func (slf *ExprParser) parsePrimary() *ExprNode {
 	if slf.match("(") {
-		result := slf.parseOr()
+		orNode := slf.parseOr()
 		slf.consume(")")
-		return result
+		return orNode
 	}
 	return slf.parseCondition()
 }
 
-func (slf *ExprParser) parseCondition() bool {
+func (slf *ExprParser) parseCondition() *ExprNode {
 	method := slf.consumeIdentifier()
 	slf.consume("(")
 	args := slf.parseArguments()
 	slf.consume(")")
-
-	return slf.proc.Verify(method, args)
+	node := &ExprNode{Method: method, Arguments: args}
+	return node
 }
 
 func (slf *ExprParser) parseArguments() []any {
@@ -73,6 +85,13 @@ func (slf *ExprParser) parseArguments() []any {
 	if !slf.check(")") {
 		arguments = append(arguments, slf.consumeString())
 		for slf.match(",") {
+			argument := slf.consumeString()
+			switch arg := argument.(type) {
+			case string:
+				if symbols[arg] {
+					panic(fmt.Sprintf("Expected argument at position %d, but got %s", slf.current, arg))
+				}
+			}
 			arguments = append(arguments, slf.consumeString())
 		}
 	}
@@ -127,16 +146,14 @@ func (slf *ExprParser) checkIdentifier() bool {
 
 func (slf *ExprParser) consumeString() any {
 	if slf.checkString() {
-		var res any
 		str := slf.tokens[slf.current]
 		num, err := strconv.Atoi(str)
 		if err == nil {
-			res = num
-		} else {
-			res = str
+			slf.advance()
+			return num
 		}
 		slf.advance()
-		return res
+		return str
 	}
 	panic(fmt.Sprintf("Expected a string at position %d", slf.current))
 }
@@ -156,11 +173,78 @@ func (slf *ExprParser) isOperator(token string) bool {
 	return token == "||" || token == "&&"
 }
 
-func exprTokenize(expr string) []string {
-	expr = strings.ReplaceAll(expr, "(", " ( ")
-	expr = strings.ReplaceAll(expr, ")", " ) ")
-	expr = strings.ReplaceAll(expr, "||", " || ")
-	expr = strings.ReplaceAll(expr, "&&", " && ")
-	expr = strings.ReplaceAll(expr, ",", " , ")
+func tokenize(expr string) []string {
+	for symbol := range symbols {
+		expr = strings.ReplaceAll(expr, symbol, " "+symbol+" ")
+	}
 	return strings.Fields(expr)
+}
+
+// Verify 验证表达式处理器
+func (slf *ExprParser) Verify() error {
+	if slf.tree == nil {
+		return errors.New("expr tree is nil")
+	}
+	return slf.verify(slf.tree.root)
+}
+
+func (slf *ExprParser) verify(node *ExprNode) (err error) {
+	if slf.proc == nil {
+		return errors.New("processor is nil")
+	}
+	if node.Method == "||" || node.Method == "&&" {
+		for _, child := range node.Children {
+			if err = slf.verify(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	} else {
+		defer func() {
+			if r := recover(); r != nil {
+				err = errors.Errorf("method %s verify failed, args: %v, err: %v", node.Method, node.Arguments, r)
+				log.Error("ExprParser.verify: panic",
+					log.String("method", node.Method), log.Any("args", node.Arguments), log.Any("err", r))
+			}
+		}()
+		slf.proc.Verify(node.Method, node.Arguments)
+		return nil
+	}
+}
+
+// Result 计算表达式结果
+func (slf *ExprParser) Result() bool {
+	if slf.tree == nil {
+		return false
+	}
+	return slf.result(slf.tree.root)
+}
+
+func (slf *ExprParser) result(node *ExprNode) bool {
+	if slf.proc == nil {
+		return false
+	}
+	if node.Method == "||" {
+		for _, child := range node.Children {
+			if slf.result(child) {
+				return true
+			}
+		}
+		return false
+	} else if node.Method == "&&" {
+		for _, child := range node.Children {
+			if !slf.result(child) {
+				return false
+			}
+		}
+		return true
+	} else {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Error("ExprParser.result: panic",
+					log.String("method", node.Method), log.Any("args", node.Arguments), log.Any("err", err))
+			}
+		}()
+		return slf.proc.Result(node.Method, node.Arguments)
+	}
 }
