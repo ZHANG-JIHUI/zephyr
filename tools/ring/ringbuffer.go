@@ -1,4 +1,4 @@
-package ringbuffer
+package ring
 
 import (
 	"sync"
@@ -10,14 +10,14 @@ type buffer[T any] struct {
 	head, tail, mod int64
 }
 
-type RingBuffer[T any] struct {
+type Ring[T any] struct {
 	len     int64
 	content *buffer[T]
 	mux     sync.Mutex
 }
 
-func New[T any](size int64) *RingBuffer[T] {
-	return &RingBuffer[T]{
+func New[T any](size int64) *Ring[T] {
+	return &Ring[T]{
 		content: &buffer[T]{
 			items: make([]T, size),
 			head:  0,
@@ -28,7 +28,7 @@ func New[T any](size int64) *RingBuffer[T] {
 	}
 }
 
-func (slf *RingBuffer[T]) Push(item T) {
+func (slf *Ring[T]) Push(item T) {
 	slf.mux.Lock()
 	slf.content.tail = (slf.content.tail + 1) % slf.content.mod
 	if slf.content.tail == slf.content.head {
@@ -51,11 +51,11 @@ func (slf *RingBuffer[T]) Push(item T) {
 	slf.mux.Unlock()
 }
 
-func (slf *RingBuffer[T]) Len() int64 {
+func (slf *Ring[T]) Len() int64 {
 	return atomic.LoadInt64(&slf.len)
 }
 
-func (slf *RingBuffer[T]) Pop() (T, bool) {
+func (slf *Ring[T]) Pop() (T, bool) {
 	if slf.Len() == 0 {
 		var t T
 		return t, false
@@ -70,7 +70,7 @@ func (slf *RingBuffer[T]) Pop() (T, bool) {
 	return item, true
 }
 
-func (slf *RingBuffer[T]) PopN(n int64) ([]T, bool) {
+func (slf *Ring[T]) PopN(n int64) ([]T, bool) {
 	slf.mux.Lock()
 	content := slf.content
 

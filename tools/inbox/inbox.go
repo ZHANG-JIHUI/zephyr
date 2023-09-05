@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"github.com/ZHANG-JIHUI/zephyr/tools/ringbuffer"
+	"github.com/ZHANG-JIHUI/zephyr/tools/ring"
 	"golang.org/x/exp/constraints"
 )
 
@@ -14,7 +14,7 @@ const (
 )
 
 type Inbox struct {
-	buffer    *ringbuffer.RingBuffer[Envelope]
+	buffer    *ring.Ring[Envelope]
 	processor Processor
 	scheduler Scheduler
 	status    int32
@@ -22,7 +22,7 @@ type Inbox struct {
 
 func NewInbox[T constraints.Signed](size T) *Inbox {
 	return &Inbox{
-		buffer:    ringbuffer.New[Envelope](int64(size)),
+		buffer:    ring.New[Envelope](int64(size)),
 		scheduler: NewScheduler(defaultThroughput),
 	}
 }
