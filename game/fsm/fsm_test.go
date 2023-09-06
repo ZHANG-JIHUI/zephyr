@@ -32,6 +32,12 @@ type StateSleep struct{ fsm.BaseState }
 
 func (slf *StateSleep) OnEnter(msg map[string]any) {
 	log.Info("enter sleep")
+	timer := time.NewTimer(time.Second * 8)
+	defer timer.Stop()
+	<-timer.C
+	slf.GetOwner().TransitionTo("battle", map[string]any{
+		"msg": "from sleep to battle",
+	})
 }
 
 func (slf *StateSleep) OnExit() {
@@ -46,6 +52,12 @@ type StateBattle struct{ fsm.BaseState }
 
 func (slf *StateBattle) OnEnter(msg map[string]any) {
 	log.Info("enter battle")
+	timer := time.NewTimer(time.Second * 2)
+	defer timer.Stop()
+	<-timer.C
+	slf.GetOwner().TransitionTo("eat", map[string]any{
+		"msg": "from battle to eat",
+	})
 }
 
 func (slf *StateBattle) OnExit() {
