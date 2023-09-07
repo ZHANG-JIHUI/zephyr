@@ -8,14 +8,14 @@ func NewSequenceNode() *SequenceNode {
 	return &SequenceNode{}
 }
 
-func (slf *SequenceNode) Run() bool {
+func (slf *SequenceNode) Run() NodeState {
 	if slf.BaseBehaviorNode.Children == nil {
-		return false
+		return NodeStateCancel
 	}
 	for _, behavior := range slf.BaseBehaviorNode.Children {
-		if !behavior.Run() {
-			return false
+		if behavior.Run() == NodeStateFailure {
+			return NodeStateFailure
 		}
 	}
-	return true
+	return NodeStateSuccess
 }

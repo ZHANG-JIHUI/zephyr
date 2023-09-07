@@ -1,7 +1,16 @@
 package behavior_tree
 
+type NodeState int
+
+const (
+	NodeStateSuccess NodeState = iota
+	NodeStateFailure           = 1
+	NodeStateRunning           = 2
+	NodeStateCancel            = 3
+)
+
 type BehaviorNode interface {
-	Run() bool
+	Run() NodeState
 	AddChild(nodes ...BehaviorNode)
 	GetChildren() []BehaviorNode
 	SetTree(tree *BehaviorTree)

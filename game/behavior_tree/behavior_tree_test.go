@@ -5,86 +5,67 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ZHANG-JIHUI/zephyr/game/behavior_tree"
+	behavior "github.com/ZHANG-JIHUI/zephyr/game/behavior_tree"
 	"github.com/ZHANG-JIHUI/zephyr/tools/log"
 )
 
 type EatBehavior struct {
-	behavior_tree.BaseBehaviorNode
+	behavior.BaseBehaviorNode
 }
 
-func (slf *EatBehavior) Run() bool {
+func (slf *EatBehavior) Run() behavior.NodeState {
 	hungryData := slf.GetTree().GetProperty("hungry")
 	if hungryData == nil {
-		return false
+		return behavior.NodeStateFailure
 	}
 	state := hungryData.(bool) == true
 	defer log.Info("eat behavior", log.Bool("hungry state", state), log.Bool("exec state", state))
 	if !state {
-		return false
+		return behavior.NodeStateFailure
 	}
-
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
-	<-timer.C
 	slf.GetTree().SetProperty("hungry", false)
-	return true
+	return behavior.NodeStateSuccess
 }
 
 type SleepBehavior struct {
-	behavior_tree.BaseBehaviorNode
+	behavior.BaseBehaviorNode
 }
 
-func (slf *SleepBehavior) Run() bool {
+func (slf *SleepBehavior) Run() behavior.NodeState {
 	state := rand.Intn(10)%2 == 0
 	defer log.Info("sleep behavior", log.Bool("exec state", state))
 	if !state {
-		return false
+		return behavior.NodeStateFailure
 	}
-
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
-	<-timer.C
 	slf.GetTree().SetProperty("hungry", true)
-
-	return true
+	return behavior.NodeStateSuccess
 }
 
 type BattleWithTomBehavior struct {
-	behavior_tree.BaseBehaviorNode
+	behavior.BaseBehaviorNode
 }
 
-func (slf *BattleWithTomBehavior) Run() bool {
+func (slf *BattleWithTomBehavior) Run() behavior.NodeState {
 	state := rand.Intn(10)%2 == 0
 	defer log.Info("battle with tom behavior", log.Bool("exec state", state))
 	if !state {
-		return false
+		return behavior.NodeStateFailure
 	}
-
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
-	<-timer.C
-
-	return true
+	return behavior.NodeStateSuccess
 }
 
 type BattleWithJerryBehavior struct {
-	behavior_tree.BaseBehaviorNode
+	behavior.BaseBehaviorNode
 }
 
-func (slf *BattleWithJerryBehavior) Run() bool {
+func (slf *BattleWithJerryBehavior) Run() behavior.NodeState {
 	state := rand.Intn(10)%2 == 0
 	defer log.Info("battle with jerry behavior", log.Bool("exec state", state))
 	if !state {
-		return false
+		return behavior.NodeStateFailure
 	}
-
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
-	<-timer.C
 	slf.GetTree().SetProperty("hungry", true)
-
-	return true
+	return behavior.NodeStateSuccess
 }
 
 func TestBehaviorTree(t *testing.T) {
@@ -96,13 +77,13 @@ func TestBehaviorTree(t *testing.T) {
 		battleWithJerry = &BattleWithJerryBehavior{}
 	)
 
-	battle := behavior_tree.NewSequenceNode()
+	battle := behavior.NewSequenceNode()
 	battle.AddChild(battleWithTom, battleWithJerry)
 
-	root := behavior_tree.NewSelectorNode()
+	root := behavior.NewSelectorNode()
 	root.AddChild(eat, sleep, battle)
 
-	tree := behavior_tree.NewBehaviorTree(root, behavior_tree.WithData(map[string]any{"hungry": false}))
+	tree := behavior.NewBehaviorTree(root, behavior.WithData(map[string]any{"hungry": false}))
 	tree.SetProperty("hungry", true)
-	tree.Run(time.Second*5, time.Minute)
+	tree.Run(time.Millisecond*50, time.Minute)
 }
